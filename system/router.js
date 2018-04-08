@@ -15,8 +15,18 @@ function route(req) {
     const url = parser.parse(req.url, true);
     const handler = handlers[url.pathname];
 
+    // See if it matches a static route
     if(handler) return handler;
     
+    // Check instead for a dynamic route
+    for(let routeURL in handlers) {
+        if(routeURL.indexOf(":") === -1) continue;
+        const trimmedRoute = routeURL.replace(":", "");
+        const dynamicHandler = handlers[url.pathname.substring(0, trimmedRoute.length) + ":"];
+
+        if(dynamicHandler) return dynamicHandler;
+    }
+
     return missing(req);
 }
 

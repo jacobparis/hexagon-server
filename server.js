@@ -16,11 +16,9 @@ const server = http.createServer((req, res) => {
 });
 server.listen(8000);
 
-console.log("Holy fuck");
-
 /** Register Websockets */
 const listeners = require('./listeners');
-const drawListeners = require('./cells/draw/listeners'); 
+const drawListeners = require('./modules/draw/listeners'); 
 
 const io = require('socket.io')(server, {
     path: '/io',
@@ -30,19 +28,17 @@ const io = require('socket.io')(server, {
 let Games = {};
 
 io.sockets.on('connection', socket => {
-    const roomName = socket.handshake.query.roomName;
+    let room = {
+        name: socket.handshake.query.room
+    }
 
-    socket.join(roomName);
-
-    // DEBUG
+    socket.join(room.name);
+    
     // If room doesn't exist, create
     // Eventually this will require authentication
-    // To allow free users to connect but specific 
-    // services to create new rooms
-    
-    if(!Reflect.has(Games, roomName)) {
-        Games[roomName] = {
-            name: roomName,
+    if(!Reflect.has(Games, room.name)) {
+        Games[room.name] = {
+            name: room.name,
             users: {},
             round: { type: "PAUSE" },
             playerQueue: []
@@ -51,20 +47,28 @@ io.sockets.on('connection', socket => {
 
     const user = {
         id: socket.id,
-        name: socket.handshake.query.userName,
-        colour: socket.handshake.query.userColour
+        name: socket.handshake.query.user,
+        colour: socket.handshake.query.colour
     };
     
-    let room = Games[roomName];
+    room = Games[room.name];
 
     if (!Reflect.has(room.users, user.name)) {
         // We are not here, join
         room.users[user.name] = user;
+    } else {
+        room.users[user.name].id = user.id;
     }
 
-    if (!room.playerQueue.indexOf(user.name)) {
+    if (room.playerQueue.indexOf(user.name) === -1) {
         // We are not queued, do so
         room.playerQueue.push(user.name);
+    }
+
+    if (!room.currentPlayer) {
+        // It is nobody's turn
+        room.currentPlayer = room.playerQueue[0];
+        
     }
 
     // Define listeners
@@ -72,14 +76,13 @@ io.sockets.on('connection', socket => {
         room = listeners.onMessage(io, room, msg);
     });
 
-    socket.on('nameChange', (user, name) => {
-        room = listeners.onNameChange(io, room, user, name);
-    });
-
-    socket.on('disconnect', (user) => {
+    socket.on('disconnect', () => {
         room = listeners.onDisconnect(io, room, user);
     });
 
+    socket.on('end-turn', (user) => {
+        room = listeners.endTurn(io, socket, room, user);
+    });
 
     // Draw listeners
     socket.on('DRAW-draw', (line, clearBuffer) => {
@@ -103,10 +106,22 @@ io.sockets.on('connection', socket => {
     });
 
     
+    console.log(room);
     // Tell the other users that we have joined
-    io.to(roomName).emit('userJoined', { name: user.name, color: user.colour });
-    io.to(roomName).emit('users', room.users);
+    io.to(room.name).emit('userJoined', { name: user.name, color: user.colour });
+    
+    let queueWithColours = [];
+    for (let name of room.playerQueue) {
+        queueWithColours.push({
+            name: name,
+            colour: room.users[name].colour
+        });
+    }
 
+    io.to(room.name).emit('queue-updated', queueWithColours);
+
+    socket.emit('change-player', room.currentPlayer);
+    
     if(room.round.type === "PAUSE") return;
 
     if(room.round.type === "DRAW") {
@@ -119,6 +134,8 @@ io.sockets.on('connection', socket => {
         if (room.round.canvas.length) {
             socket.emit('DRAW-drawCanvas', room.round.canvas);
         }
+
+        return;
     }
 
 });
