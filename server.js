@@ -128,6 +128,7 @@ io.sockets.on('connection', socket => {
         // If someone is drawing let me know
         socket.emit('DRAW-someoneIsDrawing', {
             name: room.currentPlayer,
+            letters: scrambleWord(room.round.word)
         });
 
         // Show me what they've drawn so far
@@ -149,6 +150,28 @@ function compareWords(variable, control) {
     //Reduce to length of control
     variable = variable.substr(0, control.length);
     return variable === control;
+}
+
+
+function scrambleWord(word) {
+    let letters = word.toLowerCase().replace(/\s/g, '').split('');
+    let alphabet = "aaaaaaaabbbccccdddeeeeeeeeeeeffggghhhiiiiiiijklllllmmmnnnnnnooooooopppqrrrrrrrssssstttttttuuuuvwxyyz".split('');
+
+    const numLetters = 14;
+    while (letters.length < numLetters) {
+        letters.push(alphabet.splice(Math.floor(Math.random() * alphabet.length), 1)[0]);
+    }
+
+    shuffleInPlace(letters);
+    return letters;
+}
+
+
+function shuffleInPlace(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
 }
 
 

@@ -58,7 +58,8 @@ function onReady(io, socket, room) {
     
     socket.emit('startDrawing', room.round.word);
     io.to(room.name).emit('DRAW-someoneIsDrawing', {
-        name: room.currentPlayer
+        name: room.currentPlayer,
+        letters: scrambleWord(room.round.word)
     });
 
     return room;
@@ -94,6 +95,25 @@ function nextPlayer(playerQueue, currentPlayer) {
     return playerQueue[nextIndex];
 }
 
+function scrambleWord(word) {
+    let letters = word.toLowerCase().replace(/\s/g, '').split('');
+    let alphabet = "aaaaaaaabbbccccdddeeeeeeeeeeeffggghhhiiiiiiijklllllmmmnnnnnnooooooopppqrrrrrrrssssstttttttuuuuvwxyyz".split('');
+
+    const numLetters = 14;
+    while (letters.length < numLetters) {
+        letters.push(alphabet.splice(Math.floor(Math.random() * alphabet.length), 1)[0]);
+    }
+
+    shuffleInPlace(letters);
+    return letters;
+}
+
+function shuffleInPlace(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
 module.exports = {
     onDraw: onDraw,
     onCatchUp: onCatchUp,
