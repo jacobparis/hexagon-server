@@ -41,7 +41,8 @@ io.sockets.on('connection', socket => {
             name: room.name,
             users: {},
             round: { type: "PAUSE" },
-            playerQueue: []
+            playerQueue: [],
+            modules: [ "DRAW" ]
         };
     }
 
@@ -82,6 +83,14 @@ io.sockets.on('connection', socket => {
 
     socket.on('end-turn', (user) => {
         room = listeners.endTurn(io, socket, room, user);
+    });
+
+    socket.on('request-card', () => {
+        room = listeners.requestCard(io, socket, room, {
+            "DRAW": () => {
+                return drawListeners.onReady(io, socket, room);
+            }
+        });
     });
 
     // Draw listeners

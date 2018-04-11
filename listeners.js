@@ -147,6 +147,18 @@ function endTurn(io, socket, room, user) {
     return room;
 }
 
+
+function requestCard(io, socket, room, cards) {
+    console.log(room);
+
+    const gameModule = sample(room.modules);
+    // TODO Possibly change player here?
+
+    console.log(cards);
+    console.log(gameModule);
+    return cards[gameModule]();
+}
+
 /** Utility Functions */
 
 function nextPlayer(playerQueue, currentPlayer) {
@@ -170,9 +182,16 @@ function compareWords(variable, control) {
     return variable === control;
 }
 
+function sample(array) {
+    if(!array) return;
+    if(array.length === 1) return array[0];
+
+    return array[Math.floor(Math.random() * array.length)]
+}
 
 module.exports = {
     onMessage: onMessage,
     onDisconnect: onDisconnect,
-    endTurn: endTurn
+    endTurn: endTurn,
+    requestCard: requestCard
 };
