@@ -1,7 +1,6 @@
 const dictionary = require('./words');
 
 function onDraw(socket, room, line, clearBuffer) {
-    console.log('draw');
     // Abort if this message came from someone else
     if(!room.users[room.currentPlayer].id === socket.id) return room;
 
