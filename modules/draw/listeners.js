@@ -55,7 +55,7 @@ function onReady(io, socket, room) {
 
     console.log("Ready Round", room);
     
-    socket.emit('startDrawing', room.round.word);
+    socket.emit('start-drawing', room.round.word);
     io.to(room.name).emit('DRAW-someoneIsDrawing', {
         name: room.currentPlayer,
         letters: scrambleWord(room.round.word)
