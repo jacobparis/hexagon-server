@@ -1,11 +1,13 @@
 const dictionary = require('./words');
 
+const gameID = "DRAW";
+
 function onDraw(socket, room, line, clearBuffer) {
     // Abort if this message came from someone else
     if(!room.users[room.currentPlayer].id === socket.id) return room;
 
     // Abort if we're not drawing
-    if(room.round.type !== "DRAW") return room;
+    if(room.round.type !== gameID) return room;
 
     socket.broadcast.to(room.name).emit('DRAW-draw', line, clearBuffer);
     
@@ -20,38 +22,85 @@ function onCatchUp(socket, room) {
     if (!room.users[room.currentPlayer].id === socket.id) return room;
 
     // Abort if we're not drawing
-    if (room.round.type !== "DRAW") return room;
+    if (room.round.type !== gameID) return room;
 
     socket.broadcast.to(room.name).emit('DRAW-catchUp');
 
     return room;
 }
-
+/*
 function onClearCanvas(socket, room) {
     // Abort if this message came from someone else
     if (!room.users[room.currentPlayer].id === socket.id) return room;
 
     // Abort if we're not drawing
-    if (room.users.round.type !== "DRAW") return room;
+    if (room.users.round.type !== gameID) return room;
 
     room.round.canvas = [];
 
     // TODO emit to users that we should clear the canvas?
     // io.to(room.name).emit('clearCanvas');
 
+    console.log("CLEARED");
     return room;
+}
+*/
+
+/**
+ * Takes no arguments and returns an object containing the information to run this card
+ * At minimum requires a type: "TYPE" field so the system knows which module this is
+ */
+function serveCard() {
+    const card = {
+        type: gameID,
+        word: dictionary.words[Math.floor(Math.random() * dictionary.words.length)],
+        color: "cyan",
+        canvas: []
+    };
+
+    return card;
+}
+
+/**
+ * Filters a card to only information that will be sent to the current player
+ * @param {*} card 
+ */
+function prepareForAlpha(card) {
+    return {
+        type: gameID,
+        word: card.word,
+        color: card.color
+    };
+}
+
+/**
+ * Filters a card to only information that will be sent to other players
+ * @param {*} card
+ */
+function prepareForBeta(card) {
+    return {
+        type: gameID,
+        letters: scrambleWord(card.word),
+        color: card.color
+    }
+}
+
+/**
+ * Filters a card to only information that will be sent to spectators
+ * @param {*} card
+ */
+function prepareForGamma(card) {
+    return {
+        type: gameID,
+    }
 }
 
 function onReady(io, socket, room) {
     // TODO Possibly change player here?
 
-    io.to(room.name).emit('DRAW-clearCanvas');
+    //io.to(room.name).emit('DRAW-clearCanvas');
 
-    room.round = {
-        type: "DRAW",
-        word: dictionary.words[Math.floor(Math.random() * dictionary.words.length)],
-        canvas: []
-    };
+    room.round = serveCard();
 
     console.log("Ready Round", room);
     
@@ -116,7 +165,10 @@ function shuffleInPlace(array) {
 module.exports = {
     onDraw: onDraw,
     onCatchUp: onCatchUp,
-    onClearCanvas: onClearCanvas,
-    onReady: onReady,
+    //onClearCanvas: onClearCanvas,
+    serveCard: serveCard,
+    prepareForAlpha: prepareForAlpha,
+    prepareForBeta: prepareForBeta,
+    prepareForGamma: prepareForGamma,
     onSkip: onSkip
 }

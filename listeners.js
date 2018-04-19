@@ -23,7 +23,7 @@ function onMessage(io, room, msg) {
     // Send the message to everyone else
     io.to(room.name).emit('message', {
         text: cleanText,
-        colour: user.colour,
+        color: user.color,
         name: user.name,
     });
 
@@ -43,7 +43,7 @@ function onMessage(io, room, msg) {
 
         io.to(room.name).emit('DRAW-wordGuessed', {
             text: room.round.word,
-            colour: user.colour,
+            color: user.color,
             name: user.name
         });
 
@@ -54,15 +54,15 @@ function onMessage(io, room, msg) {
 
         io.to(room.name).emit('end-turn');
 
-        let queueWithColours = [];
+        let queueWithColors = [];
         for (let name of room.playerQueue) {
-            queueWithColours.push({
+            queueWithColors.push({
                 name: name,
-                colour: room.users[name].colour
+                color: room.users[name].color
             });
         }
 
-        io.to(room.name).emit('queue-updated', queueWithColours);
+        io.to(room.name).emit('queue-updated', queueWithColors);
 
         io.to(room.name).emit('change-player', room.currentPlayer);
 
@@ -75,7 +75,7 @@ function onDisconnect(io, room, user) {
 
     io.to(room.name).emit('userLeft', {
         name: user.name,
-        colour: user.colour
+        color: user.color
     });
 
     Reflect.deleteProperty(room.users, user.name);
@@ -105,15 +105,15 @@ function onDisconnect(io, room, user) {
         room.playerQueue.splice(positionInQueue, 1);
     }
 
-    let queueWithColours = [];
+    let queueWithColors = [];
     for (let name of room.playerQueue) {
-        queueWithColours.push({
+        queueWithColors.push({
             name: name,
-            colour: room.users[name].colour
+            color: room.users[name].color
         });
     }
 
-    io.to(room.name).emit('queue-updated', queueWithColours);
+    io.to(room.name).emit('queue-updated', queueWithColors);
 
     return room;
 }
@@ -132,31 +132,19 @@ function endTurn(io, socket, room, user) {
 
     room.currentPlayer = nextPlayer(room.playerQueue, room.currentPlayer);
     
-    let queueWithColours = [];
+    let queueWithColors = [];
     for (let name of room.playerQueue) {
-        queueWithColours.push({
+        queueWithColors.push({
             name: name,
-            colour: room.users[name].colour
+            color: room.users[name].color
         });
     }
 
-    io.to(room.name).emit('queue-updated', queueWithColours);
+    io.to(room.name).emit('queue-updated', queueWithColors);
 
     io.to(room.name).emit('change-player', room.currentPlayer);
 
     return room;
-}
-
-
-function requestCard(io, socket, room, cards) {
-    console.log(room);
-
-    const gameModule = sample(room.modules);
-    // TODO Possibly change player here?
-
-    console.log(cards);
-    console.log(gameModule);
-    return cards[gameModule]();
 }
 
 /** Utility Functions */
@@ -182,16 +170,8 @@ function compareWords(variable, control) {
     return variable === control;
 }
 
-function sample(array) {
-    if(!array) return;
-    if(array.length === 1) return array[0];
-
-    return array[Math.floor(Math.random() * array.length)]
-}
-
 module.exports = {
     onMessage: onMessage,
     onDisconnect: onDisconnect,
-    endTurn: endTurn,
-    requestCard: requestCard
+    endTurn: endTurn
 };
