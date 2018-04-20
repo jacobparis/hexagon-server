@@ -19,7 +19,8 @@ server.listen(8000);
 /** Register Websockets */
 const listeners = require('./listeners');
 let cardModules = {
-    "DRAW": require('./modules/draw/listeners')
+    "DRAW": require('./modules/draw/draw'),
+    "DRAWFUL": require('./modules/drawful/drawful')
 }
 
 const io = require('socket.io')(server, {
@@ -127,15 +128,16 @@ function newGame(name, cardModules) {
         users: { },
         round: { type: "PAUSE" },
         playerQueue: [],
+        sleeve: [],
         modules: Object.keys(cardModules)
     };
 }
 
 function serveAndSignal(cardModule, io, socket, room) {
-    const card = cardModule.serveCard();
+    const card = cardModule.serveCard(room.sleeve);
 
     socket.emit('alpha', cardModule.prepareForAlpha(card));
-    io.to(room.name).emit('beta', cardModule.prepareForBeta(card));
+    socket.to(room.name).emit('beta', cardModule.prepareForBeta(card));
 
     return card;
 }

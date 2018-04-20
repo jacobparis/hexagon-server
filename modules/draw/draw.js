@@ -28,24 +28,6 @@ function onCatchUp(socket, room) {
 
     return room;
 }
-/*
-function onClearCanvas(socket, room) {
-    // Abort if this message came from someone else
-    if (!room.users[room.currentPlayer].id === socket.id) return room;
-
-    // Abort if we're not drawing
-    if (room.users.round.type !== gameID) return room;
-
-    room.round.canvas = [];
-
-    // TODO emit to users that we should clear the canvas?
-    // io.to(room.name).emit('clearCanvas');
-
-    console.log("CLEARED");
-    return room;
-}
-*/
-
 /**
  * Takes no arguments and returns an object containing the information to run this card
  * At minimum requires a type: "TYPE" field so the system knows which module this is
@@ -93,25 +75,6 @@ function prepareForGamma(card) {
     return {
         type: gameID,
     }
-}
-
-function onReady(io, socket, room) {
-    // TODO Possibly change player here?
-
-    //io.to(room.name).emit('DRAW-clearCanvas');
-
-    room.round = serveCard();
-
-    console.log("Ready Round", room);
-    
-    socket.emit('start-drawing', room.round.word);
-    io.to(room.name).emit('DRAW-someoneIsDrawing', {
-        name: room.currentPlayer,
-        letters: scrambleWord(room.round.word)
-    });
-
-    return room;
-    // TODO start 2 minute timeout
 }
 
 function onSkip(io, socket, room) {
