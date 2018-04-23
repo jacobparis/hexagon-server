@@ -1,33 +1,15 @@
 const dictionary = require('./words');
-
 const gameID = "DRAW";
 
-function onDraw(socket, room, line, clearBuffer) {
-    // Abort if this message came from someone else
-    if(!room.users[room.currentPlayer].id === socket.id) return room;
-
-    // Abort if we're not drawing
-    if(room.round.type !== gameID) return room;
-
-    socket.broadcast.to(room.name).emit('DRAW-draw', line, clearBuffer);
-    
-    // Push the current line to the canvas
-    room.round.canvas.push(line);
-       
-    return room;
+module.exports = {
+    ID: gameID,
+    serveCard: serveCard,
+    prepareForAlpha: prepareForAlpha,
+    prepareForBeta: prepareForBeta,
+    prepareForGamma: prepareForGamma,
+    events: require('./events')
 }
 
-function onCatchUp(socket, room) {
-    // Abort if this message came from someone else
-    if (!room.users[room.currentPlayer].id === socket.id) return room;
-
-    // Abort if we're not drawing
-    if (room.round.type !== gameID) return room;
-
-    socket.broadcast.to(room.name).emit('DRAW-catchUp');
-
-    return room;
-}
 /**
  * Takes no arguments and returns an object containing the information to run this card
  * At minimum requires a type: "TYPE" field so the system knows which module this is
@@ -37,7 +19,7 @@ function serveCard() {
         type: gameID,
         word: dictionary.words[Math.floor(Math.random() * dictionary.words.length)],
         color: "cyan",
-        canvas: []
+        timer: 60
     };
 
     return card;
@@ -50,8 +32,12 @@ function serveCard() {
 function prepareForAlpha(card) {
     return {
         type: gameID,
-        word: card.word,
-        color: card.color
+        heading: card.word,
+        color: card.color,
+        timer: card.timer,
+        maximize: true,
+        skip: true,
+        mode: "alpha",
     };
 }
 
@@ -62,8 +48,11 @@ function prepareForAlpha(card) {
 function prepareForBeta(card) {
     return {
         type: gameID,
-        letters: scrambleWord(card.word),
-        color: card.color
+        data: scrambleWord(card.word),
+        color: card.color,
+        maximize: false,
+        skip: false,
+        mode: "beta"
     }
 }
 
@@ -77,34 +66,7 @@ function prepareForGamma(card) {
     }
 }
 
-function onSkip(io, socket, room) {
-    if (!room.users[room.currentPlayer].id === socket.id) return room;
-
-    io.to(room.name).emit('DRAW-wordNotGuessed', {
-        text: room.round.word
-    });
-
-    // Choose next player
-    room.currentPlayer = nextPlayer(room.playerQueue, room.currentPlayer);
-    room.round = { type: "PAUSE" };
-
-    io.to(room.name).emit('roundReady');
-
-    return room;
-}
-
-function validateRoom(room) {
-    if(!room.users[room.currentPlayer]) room.currentPlayer = room.playerQueue[0];
-    if (!room.round) room.round = { type: "PAUSE" };
-    return room;
-}
 /** Utility Functions */
-
-function nextPlayer(playerQueue, currentPlayer) {
-    const index = playerQueue.indexOf(currentPlayer);
-    const nextIndex = (index + 1) % playerQueue.length;
-    return playerQueue[nextIndex];
-}
 
 function scrambleWord(word) {
     let letters = word.toLowerCase().replace(/\s/g, '').split('');
@@ -125,13 +87,4 @@ function shuffleInPlace(array) {
         [array[i], array[j]] = [array[j], array[i]];
     }
 }
-module.exports = {
-    onDraw: onDraw,
-    onCatchUp: onCatchUp,
-    //onClearCanvas: onClearCanvas,
-    serveCard: serveCard,
-    prepareForAlpha: prepareForAlpha,
-    prepareForBeta: prepareForBeta,
-    prepareForGamma: prepareForGamma,
-    onSkip: onSkip
-}
+

@@ -3,6 +3,14 @@ const dictionary = require('./words');
 const gameID = "DRAWFUL";
 const sleeveID = "DRAWFUL-GUESS";
 
+module.exports = {
+    ID: gameID,
+    serveCard: serveCard,
+    prepareForAlpha: prepareForAlpha,
+    prepareForBeta: prepareForBeta,
+    prepareForGamma: prepareForGamma
+};
+
 /**
  * DRAWFUL MODULE
  * This module is based on the jackbox party pack game Drawful
@@ -18,9 +26,10 @@ const sleeveID = "DRAWFUL-GUESS";
  * Takes no arguments and returns an object containing the information to run this card
  * At minimum requires a type: "TYPE" field so the system knows which module this is
  */
+
 function serveCard(sleeve) {
     if(sleeve.length) {
-        for(let card of sleeve) {
+        for(const card of sleeve) {
             if(card.type !== sleeveID) continue;
             console.log("Using sleeved " + sleeveID + " card", card);
 
@@ -31,7 +40,8 @@ function serveCard(sleeve) {
     const card = {
         type: gameID,
         color: "blue",
-        canvas: []
+        canvas: [],
+        timer: 30
     };
 
     return card;
@@ -46,17 +56,24 @@ function prepareForAlpha(card) {
         const phrases = Object.keys(dictionary.words);
         return {
             type: gameID,
-            word: phrases[Math.floor(Math.random() * phrases.length)],
-            color: card.color
+            heading: phrases[Math.floor(Math.random() * phrases.length)],
+            color: card.color,
+            timer: card.timer,
+            maximize: true,
+            skip: false,
+            mode: "alpha",
         };
     }
 
     if (card.type === sleeveID) {
         return {
             type: sleeveID,
-            word: card.word,
+            heading: card.word,
             image: card.image,
-            color: card.color
+            color: card.color,
+            maximize: false,
+            skip: false,
+            mode: "alpha",
         };
     }
 }
@@ -73,9 +90,12 @@ function prepareForBeta(card) {
     if (card.type === sleeveID) {
         return {
             type: sleeveID,
-            phrases: loadPhrases(card.word),
+            data: loadPhrases(card.word),
             image: card.image,
-            color: card.color
+            color: card.color,
+            maximize: false,
+            skip: false,
+            mode: "beta"
         };
     }
 }
@@ -90,21 +110,11 @@ function prepareForGamma(card) {
     }
 }
 
-function onSkip(io, socket, room) {
-    return room;
-}
-
 /** Utility Functions */
 
 function loadPhrases(dictionary, word) {
     const phrases = [word].concat(dictionary.words[word].alts);
-    
+
     return phrases;
 }
-module.exports = {
-    serveCard: serveCard,
-    prepareForAlpha: prepareForAlpha,
-    prepareForBeta: prepareForBeta,
-    prepareForGamma: prepareForGamma,
-    onSkip: onSkip
-}
+

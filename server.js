@@ -18,32 +18,25 @@ server.listen(8000);
 
 /** Register Websockets */
 const listeners = require('./listeners');
-let cardModules = {
-    "DRAW": require('./modules/draw/draw'),
-    "DRAWFUL": require('./modules/drawful/drawful')
-}
 
 const io = require('socket.io')(server, {
     path: '/io',
     serveClient: false
 });
 
+const cardModules = {
+    "DRAW": require('./modules/draw/draw'),
+    //"DRAWFUL": require('./modules/drawful/drawful')
+}
+
 
 let Games = {};
 
 io.sockets.on('connection', socket => {
-    let room = {
-        name: socket.handshake.query.room
-    }
-
-    socket.join(room.name);
+    const roomName = socket.handshake.query.room;
+    socket.join(roomName);
     
-    // If room doesn't exist, create
-    // Eventually this will require authentication
-    if(!Reflect.has(Games, room.name)) {
-        Games[room.name] = newGame(room.name, cardModules);
-    }
-    room = Games[room.name];
+    const room = Games[roomName];
     
     const user = {
         id: socket.id,
@@ -51,76 +44,128 @@ io.sockets.on('connection', socket => {
         color: socket.handshake.query.color
     };
     
+    Object.assign(room, addUserToRoom(room, user));
 
-    if (!Reflect.has(room.users, user.name)) {
-        // We are not here, join
-        room.users[user.name] = user;
-    } else {
-        room.users[user.name].id = user.id;
+    const socketRoutes = {
+        "room": (name, ...args) => io.in(room.name).emit(name, ...args),
+        "others": (name, ...args) => socket.to(room.name).emit(name, ...args),
+        "blast-others": (name, ...args) => socket.volatile.to(room.name).emit(name, ...args),
+        "me": (name, ...args) => socket.emit(name, ...args)
+    };
+
+    // Define listeners
+    socket.on('request-card', () => {
+        const cardModule = cardModules[sample(room.modules)];
+        Object.assign(room.round, cardModule.serveCard(room.sleeve));
+
+        socketRoutes.me('card', cardModule.prepareForAlpha(room.round));
+        socketRoutes.others('card', cardModule.prepareForBeta(room.round));
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`${user.name}@${room.name} has left the game`);
+        if (isSocketFromCurrentPlayer(room, socket)) {
+            // Delete this room if the last player left
+            if(room.playerQueue.length === 1) {
+                Reflect.deleteProperty(Games, socket.handshake.query.room);
+                return;
+            }
+            
+            // End the turn if it's skippable
+            if(room.round.skip) {
+                Object.assign(room, reduce(listeners.endTurn(room), socketRoutes));
+            }
+        }
+        
+        room.playerQueue = removeFromArray(room.playerQueue, user.name);
+        
+        socketRoutes.room('userLeft', user.name);
+        socketRoutes.room('queue-updated', room.playerQueue);
+        
+        Reflect.deleteProperty(room.users, user.name);
+    });
+
+
+    const allModules = Object.assign({"CORE": listeners}, cardModules);
+
+    // Poll modules for listeners
+    for (const name in allModules) {
+        const cardModule = allModules[name];
+
+        if (!cardModule.events) continue;
+
+        for (const e in cardModule.events) {
+            const isPrivate = e.split('')[0] === "_";
+            const eventName = e.slice(isPrivate);
+
+            socket.on(eventName, (...args) => {
+                if (!isCurrentModule(room, name)) return;
+                if (isPrivate && !isSocketFromCurrentPlayer(room, socket)) return;
+
+                const reducer = cardModule.events[e](room, ...args);
+                Object.assign(room, reduce(reducer, socketRoutes));
+                // It's possible we are passing room by value here
+                // It doesn't seem to be updating properly
+            });
+        }
+    }
+    
+    socketRoutes.me('change-player', room.currentPlayer);
+    socketRoutes.room('userJoined', { name: user.name, color: user.color });
+    socketRoutes.room('queue-updated', room.playerQueue);
+
+    console.log(`${user.name}@${room.name} has joined the game`);
+});
+
+function isCurrentModule(room, name) {
+    if(name === "CORE") return true;
+
+    return room.round.type === name;
+}
+
+function isSocketFromCurrentPlayer(room, socket) {
+    if (!Reflect.has(room.users, room.currentPlayer)) {
+        console.log("This socket is orphaned and should be removed");
+        return false;
+    }
+    
+    return room.users[room.currentPlayer].id === socket.id;
+}
+
+function reduce(reducer, handler) {
+    if (reducer.events && reducer.events.length) {
+        for (const e of reducer.events) {
+            if (!Reflect.has(handler, e.to)) continue;
+
+            handler[e.to](e.name, e.data);
+        }
     }
 
-    if (room.playerQueue.indexOf(user.name) === -1) {
-        // We are not queued, do so
+    if (reducer.room) {
+        return clone(reducer.room);
+    }
+
+    return undefined;
+}
+
+function addUserToRoom(roomObject, user) {
+    const room = Object.assign({}, roomObject);
+    if (Reflect.has(room.users, user.name)) {
+        room.users[user.name].id = user.id;
+    } else {
+        room.users[user.name] = user;
+    }
+    
+    if (room.playerQueue.indexOf(user.name) < 0) {
         room.playerQueue.push(user.name);
     }
 
     if (!room.currentPlayer) {
-        // It is nobody's turn
         room.currentPlayer = room.playerQueue[0];
-        
     }
 
-    // Define listeners
-    socket.on('message', msg => {
-        room = listeners.onMessage(io, room, msg);
-    });
-
-    socket.on('disconnect', () => {
-        room = listeners.onDisconnect(io, room, user);
-    });
-
-    socket.on('end-turn', (user) => {
-        room = listeners.endTurn(io, socket, room, user);
-    });
-
-    socket.on('request-card', () => {
-        const cardModule = cardModules[sample(room.modules)];
-        room.round = serveAndSignal(cardModule, io, socket, room);
-    });
-
-    
-    // Draw listeners
-    socket.on('DRAW-draw', (line, clearBuffer) => {
-        room = cardModules["DRAW"].onDraw(socket, room, line, clearBuffer);
-    });
-
-    socket.on('DRAW-catchUp', () => {
-        room = cardModules["DRAW"].onCatchUp(io, room);
-    });
-
-    
-    // Tell the other users that we have joined
-    io.to(room.name).emit('userJoined', { name: user.name, color: user.color });
-    
-    let queueWithColors = [];
-    for (let name of room.playerQueue) {
-        queueWithColors.push({
-            name: name,
-            color: room.users[name].color
-        });
-    }
-
-    io.to(room.name).emit('queue-updated', queueWithColors);
-    socket.emit('change-player', room.currentPlayer);
-    
-    if(room.round.type === "PAUSE") return;
-
-    // Update me on the game info
-    const betaSignal = cardModules[room.round.type].prepareForBeta(room.round);
-    socket.emit('beta', betaSignal);
-    
-    return;
-});
+    return room;
+}
 
 function newGame(name, cardModules) {
     return {
@@ -133,15 +178,6 @@ function newGame(name, cardModules) {
     };
 }
 
-function serveAndSignal(cardModule, io, socket, room) {
-    const card = cardModule.serveCard(room.sleeve);
-
-    socket.emit('alpha', cardModule.prepareForAlpha(card));
-    socket.to(room.name).emit('beta', cardModule.prepareForBeta(card));
-
-    return card;
-}
-
 /** Utility Functions */
 function sample(array) {
     if (!array) return;
@@ -150,5 +186,14 @@ function sample(array) {
     return array[Math.floor(Math.random() * array.length)]
 }
 
+function removeFromArray(array, element) {
+    const i = array.indexOf(element);
+    if (i >= 0) return [...array].splice(i, 1);
+    return array;
+}
 
+function clone(object) {
+    if (Array.isArray(object)) return object.slice(0);
 
+    return Object.assign({}, object);
+}
