@@ -2,7 +2,9 @@ module.exports = {
     events: {
         "message": onMessage,
         "_end-turn": endTurn
-    }
+    },
+    endTurn: endTurn,
+    joinRoom: addUserToRoom
 };
 
 function onMessage(roomObject, msg) {
@@ -65,10 +67,63 @@ function changeNextPlayer(roomObject) {
     events.push({ to: "room", name: 'change-player', data: room.currentPlayer });
     
     console.log(`${room.currentPlayer}@${room.name} begins turn`);
+
     return {
         room: room,
         events: events
     };
+}
+
+
+function addUserToRoom(roomObject, user) {
+    const state = createReducer(roomObject);
+    const room = clone(state.room);
+
+    if (Reflect.has(room.users, user.name)) {
+        console.log(`${user.name}@${room.name} resumes the game`);
+        room.users[user.name].id = user.id;
+    } else {
+        console.log(`${user.name}@${room.name} has joined the game`);
+
+        room.users[user.name] = user;
+    }
+
+    if (room.playerQueue.indexOf(user.name) < 0) {
+        console.log(`${user.name}@${room.name} jumps on the back of the queue`);
+        
+        room.playerQueue.push(user.name);
+    }
+    console.log(`${room.name} QUEUE: ${room.playerQueue}`);
+    console.log(`${room.name} CONTROL: ${roomObject.playerQueue}`);
+
+    if (!room.currentPlayer) {
+        console.log(`${user.name}@${room.name} is current player by default`);
+
+        room.currentPlayer = room.playerQueue[0];
+    }
+
+    const events = clone(state.events);
+    events.push({ to: "me", name: 'change-player', data: room.currentPlayer });
+    events.push({ to: "room", name: 'userJoined', data: { name: user.name, color: user.color } });
+    events.push({
+        to: "room", name: 'queue-updated', data: room.playerQueue.map(name => {
+            let color = "black";
+            if (Reflect.has(room.users, name)) color = room.users[name].color;
+
+            return {
+                name: name,
+                color: color
+            };
+        })
+    });
+
+    return {
+        room: room,
+        events: events
+    };
+
+
+
 }
 
 function createReducer(object) {
