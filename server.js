@@ -238,9 +238,3 @@ function removeFromArray(arrayObject, element) {
     if (i >= 0) array.splice(i, 1);
     return array;
 }
-
-function clone(object) {
-    if (Array.isArray(object)) return object.slice(0);
-
-    return Object.assign({}, object);
-}

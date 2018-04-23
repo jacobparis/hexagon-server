@@ -9,19 +9,10 @@ module.exports = {
 
 function onMessage(roomObject, msg) {
     const state = createReducer(roomObject);
-    
-    const room = clone(state.room);
-
-    const user = (() => {
-        for(const u in state.room.users) {
-            if (state.room.users[u].id === msg.user) return state.room.users[u];
-        }
-    })();
-    
+    const user = getUserFromID(state.room, msg.user);
     const cleanText = sanitizeString(msg.text);
     
-    const events = clone(state.events);
-    events.push({
+    state.events.push({
         to: "room",
         name: "message",
         data: {
@@ -31,47 +22,29 @@ function onMessage(roomObject, msg) {
         }
     });
     
-    console.log(`${user.name}@${room.name}: ${cleanText}`);
-    return {
-        room: room,
-        events: events
-    }
+    console.log(`${user.name}@${state.room.name}: ${cleanText}`);
+    return state;
 }
-
-
 
 function endTurn(roomObject) {
     console.log("END TURN");
     const state = createReducer(roomObject);
-    
-    const room = clone(state.room);
-    room.round = { type: "PAUSE" };
+    state.room.round = { type: "PAUSE" };
+    state.events.push({ to: "room", name: 'end-turn'});
 
-    const events = clone(state.events);
-    events.push({ to: "room", name: 'end-turn'});
-
-    return changeNextPlayer({
-        room: room,
-        events: events
-    });
+    return changeNextPlayer(state);
 }
 
 
 function changeNextPlayer(roomObject) {
     const state = createReducer(roomObject);
     
-    const room = clone(state.room);
-    room.currentPlayer = nextIndex(state.room.playerQueue, state.room.currentPlayer);
+    state.room.currentPlayer = nextIndex(state.room.playerQueue, state.room.currentPlayer);
+    state.events.push({ to: "room", name: 'change-player', data: state.room.currentPlayer });
     
-    const events = clone(state.events);
-    events.push({ to: "room", name: 'change-player', data: room.currentPlayer });
-    
-    console.log(`${room.currentPlayer}@${room.name} begins turn`);
+    console.log(`${state.room.currentPlayer}@${state.room.name} begins turn`);
 
-    return {
-        room: room,
-        events: events
-    };
+    return state;
 }
 
 
@@ -153,5 +126,11 @@ function nextIndex(array, index) {
 
 function sanitizeString(string, maxLength) {
     return string.replace(/[^a-z ]/gim, "").trim().substr(maxLength);
+}
+
+function getUserFromID(roomObject, id) {
+    for (const user in roomObject.users) {
+        if (roomObject.users[user].id === id) return roomObject.users[user];
+    }
 }
 

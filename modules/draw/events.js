@@ -1,50 +1,34 @@
 const coreModule = require('../../listeners');
 
 module.exports = {
-    //"message": onMessage,
+    "message": onMessage,
     "_DRAW-draw": onDraw,
     //"_DRAW-catchUp": onCatchUp
 };
 
 function onMessage(roomObject, msg) {
-    console.log('draw message');
-    const reducer = {
-        room: {
-            ...roomObject
-        },
-        events: []
-    };
-
-    // TODO Reimplement dartboard
-
-    const user = reducer.room.users.find(u => {
-        return u.id === msg.user;
-    });
-
+    const user = getUserFromID(roomObject, msg.user);
     const cleanText = sanitizeString(msg.text);
-
+    
     // Block all guesses by the current player
-    if (user.name === reducer.room.currentPlayer) return reducer;
-
+    if (user.name === roomObject.currentPlayer) return createReducer(roomObject);
+    
     // Block all incorrect guesses
-    if (!compareWords(cleanText, reducer.room.round.word)) return reducer;
+    if (!compareWords(cleanText, roomObject.round.word)) return createReducer(roomObject);
+    
+    console.log(`${user.name}@${roomObject.name} correctly guesses ${cleanText}`);
 
-    const endReducer = coreModule.endTurn(reducer.room);
-    reducer.room = endReducer.room;
-    reducer.events.concat(endReducer.events);
-
-    return reducer;
+    return coreModule.endTurn(roomObject);
 }
 
 function onDraw(roomObject, line, clearBuffer) {
-    const reducer = {
-        room: {...roomObject},
-        events: [
-            { to: "blast-others", name: "DRAW-draw", data: [line, clearBuffer] }
-        ]
-    }
+    const state = createReducer(roomObject);
+    const room = state.room;
+    const events = state.events;
 
-    return reducer;
+    state.events.push({to: "blast-others", name: "DRAW-draw", data: [line, clearBuffer]});
+
+    return state;
 }
 
 function sanitizeString(string, maxLength) {
@@ -59,4 +43,27 @@ function compareWords(variable, control) {
     //Reduce to length of control
     variable = variable.substr(0, control.length);
     return variable === control;
+}
+
+function getUserFromID(roomObject, id) {
+    for (const user in roomObject.users) {
+        if (roomObject.users[user].id === id) return roomObject.users[user];
+    }
+}
+
+function createReducer(object) {
+    if (Reflect.has(object, "room") && Reflect.has(object, "events")) {
+        return clone(object);
+    }
+
+    return {
+        room: clone(object),
+        events: []
+    };
+}
+
+function clone(object) {
+    if (Array.isArray(object)) return object.slice(0);
+
+    return Object.assign({}, object);
 }
