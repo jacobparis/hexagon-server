@@ -11,7 +11,7 @@ router.registerRoutes(routes);
 /** Define Server */
 const http = require('http');
 const server = http.createServer((req, res) => {
-    handler = router.route(req);
+    const handler = router.route(req);
     handler.process([req, res]);
 });
 server.listen(8000);
