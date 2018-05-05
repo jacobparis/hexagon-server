@@ -26,7 +26,8 @@ const io = require('socket.io')(server, {
 
 const cardModules = {
     "DRAW": require('./modules/draw/draw'),
-    //"DRAWFUL": require('./modules/drawful/drawful')
+    "DRAWFUL": require('./modules/drawful/drawful'),
+    "SOCIABLES": require('./modules/sociables/sociables'),
 }
 
 
@@ -39,7 +40,24 @@ io.sockets.on('connection', socket => {
     // If room doesn't exist, create
     // Eventually this will require authentication
     if (!Reflect.has(Games, roomName)) {
-        Games[roomName] = newGame(roomName, cardModules);
+        const modules = (() => {
+            switch(socket.handshake.query.game) {
+                case "firecup": {
+                    return {
+                        "SOCIABLES": cardModules.SOCIABLES
+                    };
+                }
+                case "firedraw": {
+                    return {
+                        "DRAW": cardModules.DRAW,
+                        "DRAWFUL": cardModules.DRAWFUL
+                    }
+                }
+                default: return {};
+            }
+        })();
+
+        Games[roomName] = newGame(roomName, modules);
         console.log(`${roomName} has been created. Hello!`);
     }
     
@@ -61,10 +79,10 @@ io.sockets.on('connection', socket => {
     // Define listeners
     socket.on('request-card', () => {
         const cardModule = cardModules[sample(room.modules)];
-        Object.assign(room.round, cardModule.serveCard(room.sleeve));
+        Object.assign(room.round, cardModule.serveCard(room));
         
-        socketRoutes.me('card', cardModule.prepareForAlpha(room.round));
-        socketRoutes.others('card', cardModule.prepareForBeta(room.round));
+        socketRoutes.me('card', cardModule.prepareForAlpha(room));
+        socketRoutes.others('card', cardModule.prepareForBeta(room));
     });
     
     socket.on('disconnect', () => {

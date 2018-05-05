@@ -51,7 +51,8 @@ function serveCard(sleeve) {
  * Filters a card to only information that will be sent to the current player
  * @param {*} card 
  */
-function prepareForAlpha(card) {
+function prepareForAlpha(room) {
+    const card = room.round;
     if (card.type === gameID) {
         const phrases = Object.keys(dictionary.words);
         return {
@@ -82,7 +83,8 @@ function prepareForAlpha(card) {
  * Filters a card to only information that will be sent to other players
  * @param {*} card
  */
-function prepareForBeta(card) {
+function prepareForBeta(room) {
+    const card = room.round;
     if (card.type === gameID) {
         return prepareForAlpha(card);
     }
@@ -104,7 +106,8 @@ function prepareForBeta(card) {
  * Filters a card to only information that will be sent to spectators
  * @param {*} card
  */
-function prepareForGamma(card) {
+function prepareForGamma(room) {
+    const card = room.round;
     return {
         type: gameID,
     }

@@ -29,7 +29,8 @@ function serveCard() {
  * Filters a card to only information that will be sent to the current player
  * @param {*} card 
  */
-function prepareForAlpha(card) {
+function prepareForAlpha(room) {
+    const card = room.round;
     return {
         type: gameID,
         heading: card.word,
@@ -45,7 +46,8 @@ function prepareForAlpha(card) {
  * Filters a card to only information that will be sent to other players
  * @param {*} card
  */
-function prepareForBeta(card) {
+function prepareForBeta(room) {
+    const card = room.round;
     return {
         type: gameID,
         data: scrambleWord(card.word),
@@ -60,7 +62,8 @@ function prepareForBeta(card) {
  * Filters a card to only information that will be sent to spectators
  * @param {*} card
  */
-function prepareForGamma(card) {
+function prepareForGamma(room) {
+    const card = room.round;
     return {
         type: gameID,
     }
