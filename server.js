@@ -12,11 +12,17 @@ router.registerRoutes(routes);
 const http = require('http');
 const server = http.createServer((req, res) => {
     // Set CORS headers
+    const handler = router.route(req); +    // Set CORS headers
+    handler.process([req, res]);
+    
     var allowedOrigins = [
         'http://firecup.jacobpariseau.com', 
         'http://firedraw.ca'
     ];
+
     var origin = req.headers.origin;
+    console.log("TESTING ORIGIN", origin);
+    
     if (allowedOrigins.indexOf(origin) > -1) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     }
