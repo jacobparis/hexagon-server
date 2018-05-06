@@ -11,8 +11,13 @@ router.registerRoutes(routes);
 /** Define Server */
 const http = require('http');
 const server = http.createServer((req, res) => {
-    const handler = router.route(req);
-    handler.process([req, res]);
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', 'http://firecup.jacobpariseau.com');
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
 });
 server.listen(8000);
 
