@@ -47,6 +47,7 @@ const cardModules = {
     "DRAW": require('./modules/draw/draw'),
     "DRAWFUL": require('./modules/drawful/drawful'),
     "SOCIABLES": require('./modules/sociables/sociables'),
+    "DUNGEON": require('./modules/dungeon/dungeon'),
 }
 
 
@@ -70,6 +71,11 @@ io.sockets.on('connection', socket => {
                     return {
                         "DRAW": cardModules.DRAW,
                         "DRAWFUL": cardModules.DRAWFUL
+                    }
+                }
+                case "dungeon": {
+                    return {
+                        "DUNGEON": cardModules.DUNGEON
                     }
                 }
                 default: return {};
